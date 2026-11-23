@@ -218,6 +218,8 @@ function render(){
   let rows=DATA().filter(d=>(d.vendor+' '+d.cat+' '+d.nm).toLowerCase().includes(q));
   if(!SHOW_ALL) rows=rows.filter(d=>d.isnew||d.hascost);
   rows.sort((a,b)=>((b[sk]==null?-1e12:b[sk])-(a[sk]==null?-1e12:a[sk])));
+  const pinnedIndex=rows.findIndex(row=>row.lastEdited);
+  if(pinnedIndex>0) rows.unshift(rows.splice(pinnedIndex,1)[0]);
   document.getElementById('grid').innerHTML=rows.map(card).join('');
   document.getElementById('note').innerHTML=
    '<b>РРЦ — цена до СПП.</b> Проценты у статей — доля от РРЦ. Прибыль — до рекламы; «📣 ДРР 10%» — с рекламой. '+
@@ -300,7 +302,19 @@ function addNew(){
   const row=recalculate({id:editing?.id??('n'+Date.now()),vendor:name,cat,cost,rrc,qty,spp:spp/100,
     buyout,days,direct,rateOverride,payOverride,vol,dims:keep?editing.dims:dims,
     nm:'новинка',isnew:true,hascost:true,saved:true});
-  SAVED=SAVED.filter(x=>x.id!==row.id).concat(row);saveAll(SAVED);closeModal();render();
+  const wasEdited=Boolean(editing);
+  if(wasEdited){
+    for(const saved of SAVED) delete saved.lastEdited;
+    row.lastEdited=true;
+  }
+  SAVED=SAVED.filter(x=>x.id!==row.id).concat(row);
+  saveAll(SAVED);closeModal();render();
+  if(wasEdited){
+    const query=document.getElementById('q').value.toLowerCase();
+    if((row.vendor+' '+row.cat+' '+row.nm).toLowerCase().includes(query)){
+      document.getElementById('grid').firstElementChild?.scrollIntoView({block:'nearest'});
+    }
+  }
 }
 function editRrc(id){openModal(SAVED.find(x=>x.id===id)||BASE.find(x=>x.id===id));}
 function delNew(id){ SAVED=SAVED.filter(x=>x.id!==id); saveAll(SAVED); render(); }
